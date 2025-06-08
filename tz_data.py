@@ -1,5 +1,5 @@
-# Generated on 2025-06-08 15:26:53 UTC
-# Version 1.0.2
+# Generated on 2025-06-08 15:27:55 UTC
+# Version 1.0.3
 
 tz_table = {
     "africa/abidjan": "GMT0",
