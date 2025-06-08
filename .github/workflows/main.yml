@@ -2,11 +2,11 @@ name: Update TZ Data
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Weekly, every Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'  # Weekly on Sunday at 00:00 UTC
   workflow_dispatch:
 
 permissions:
-  contents: write  # Needed to commit and tag
+  contents: write
 
 jobs:
   update:
@@ -27,35 +27,52 @@ jobs:
       - name: Download latest zones.csv
         run: curl -sSLO https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
 
-      - name: Generate tz_data.py and push changes
+      - name: Generate tz_data.py with timestamp and version
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           VERSION=$(cat version.txt)
           IFS='.' read MAJOR MINOR PATCH <<< "$VERSION"
           PATCH=$((PATCH + 1))
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "$NEW_VERSION" > version.txt
 
-          echo "# Generated on $TIMESTAMP" > tz_data.py
-          echo "# Version $NEW_VERSION" >> tz_data.py
-          echo "" >> tz_data.py
-          echo "tz_table = {" >> tz_data.py
+          mkdir -p generated
+          echo "# Generated on $TIMESTAMP" > generated/tz_data.py
+          echo "# Version $NEW_VERSION" >> generated/tz_data.py
+          echo "" >> generated/tz_data.py
+          echo "tz_table = {" >> generated/tz_data.py
 
           tail -n +1 zones.csv | while IFS=, read -r iana posix; do
             iana_clean=$(echo "$iana" | tr -d '"')
             posix_clean=$(echo "$posix" | tr -d '"')
-            echo "    \"${iana_clean,,}\": \"$posix_clean\"," >> tz_data.py
+            echo "    \"${iana_clean,,}\": \"$posix_clean\"," >> generated/tz_data.py
           done
 
-          echo "}" >> tz_data.py
-          echo "" >> tz_data.py
-          echo "def lookup(iana_name):" >> tz_data.py
-          echo "    return tz_table.get(iana_name.lower().strip())" >> tz_data.py
+          echo "}" >> generated/tz_data.py
+          echo "" >> generated/tz_data.py
+          echo "def lookup(iana_name):" >> generated/tz_data.py
+          echo "    return tz_table.get(iana_name.lower().strip())" >> generated/tz_data.py
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Compare and commit only if real tz_table changed
+        run: |
+          mkdir -p existing
+          tail -n +3 generated/tz_data.py > generated/core.py
+          tail -n +3 tz_data.py > existing/core.py || touch existing/core.py
 
-          git add tz_data.py version.txt
-          git diff --cached --quiet || git commit -m "Update tz_data.py to version $NEW_VERSION"
-          git tag -a "v$NEW_VERSION" -m "Version $NEW_VERSION"
-          git push origin main --follow-tags
+          if ! diff -q generated/core.py existing/core.py >/dev/null; then
+            VERSION=$(cat version.txt)
+            IFS='.' read MAJOR MINOR PATCH <<< "$VERSION"
+            PATCH=$((PATCH + 1))
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+            echo "$NEW_VERSION" > version.txt
+
+            mv generated/tz_data.py tz_data.py
+
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add tz_data.py version.txt
+            git commit -m "Update tz_data.py to version $NEW_VERSION"
+            git tag -a "v$NEW_VERSION" -m "Version $NEW_VERSION"
+            git push origin main --follow-tags
+          else
+            echo "No changes to tz_table — skipping commit and tag."
+          fi
