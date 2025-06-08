@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write  # ✅ Needed to commit and push/tag changes
+  contents: write  # Needed to commit and tag
 
 jobs:
   update:
@@ -27,7 +27,7 @@ jobs:
       - name: Download latest zones.csv
         run: curl -sSLO https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
 
-      - name: Generate tz_data.py
+      - name: Generate tz_data.py and push changes
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           VERSION=$(cat version.txt)
@@ -52,11 +52,10 @@ jobs:
           echo "def lookup(iana_name):" >> tz_data.py
           echo "    return tz_table.get(iana_name.lower().strip())" >> tz_data.py
 
-      - name: Commit and push
-        run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git add tz_data.py version.txt
-          git commit -m "Update tz_data.py to version $NEW_VERSION"
+          git diff --cached --quiet || git commit -m "Update tz_data.py to version $NEW_VERSION"
           git tag -a "v$NEW_VERSION" -m "Version $NEW_VERSION"
           git push origin main --follow-tags
