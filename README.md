@@ -1,6 +1,6 @@
 # MicroPython Timezone Lookup
 
-A compact, pre-generated MicroPython-compatible timezone lookup library based on the [Nayarsystems POSIX TZ database](https://github.com/nayarsystems/posix_tz_db).
+A compact, pre-generated MicroPython-compatible timezone lookup library based on the [Nayarsystems POSIX TZ database](https://github.com/nayarsystems/posix_tz_db). It updates every week automatically from Nayarsystems, ensuring it is accurate. A new tag is formed on each update.
 
 ## Files
 
