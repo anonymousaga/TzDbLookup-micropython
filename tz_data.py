@@ -1,5 +1,6 @@
-# Generated on 2025-06-08 15:33:09 UTC
-# Version 1.1.1
+# Generated on 2025-06-08 15:45:10 UTC
+# Version 1.1.2
+# Source: https://raw.githubusercontent.com/anonymousaga/TzDbLookup-micropython/main/tz_data.py
 
 tz_table = {
     "africa/abidjan": "GMT0",
