@@ -1,5 +1,5 @@
-# Generated on 2025-06-08 15:27:55 UTC
-# Version 1.0.3
+# Generated on 2025-06-08 15:31:33 UTC
+# Version 1.0.4
 
 tz_table = {
     "africa/abidjan": "GMT0",
@@ -17,6 +17,7 @@ tz_table = {
     "africa/cairo": "EET-2EEST,M4.5.5/0,M10.5.4/24",
     "africa/casablanca": "<+01>-1",
     "africa/ceuta": "CET-1CEST,M3.5.0,M10.5.0/3",
+    "africa/conakry": "GMT0",
     "africa/dakar": "GMT0",
     "africa/dar_es_salaam": "EAT-3",
     "africa/djibouti": "EAT-3",
