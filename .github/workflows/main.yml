@@ -2,7 +2,7 @@ name: Update TZ Data
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sunday at 00:00 UTC
+    - cron: '0 0 * * 0'  # Weekly
   workflow_dispatch:
 
 permissions:
@@ -27,8 +27,9 @@ jobs:
       - name: Download latest zones.csv
         run: curl -sSLO https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
 
-      - name: Generate tz_data.py with timestamp and version
+      - name: Generate tz_data.py with timestamp, version, and raw link
         run: |
+          REPO_URL="https://raw.githubusercontent.com/anonymousaga/TzDbLookup-micropython/main/tz_data.py"
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           VERSION=$(cat version.txt)
           IFS='.' read MAJOR MINOR PATCH <<< "$VERSION"
@@ -36,27 +37,28 @@ jobs:
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 
           mkdir -p generated
-          echo "# Generated on $TIMESTAMP" > generated/tz_data.py
-          echo "# Version $NEW_VERSION" >> generated/tz_data.py
-          echo "" >> generated/tz_data.py
-          echo "tz_table = {" >> generated/tz_data.py
-
-          tail -n +1 zones.csv | while IFS=, read -r iana posix; do
-            iana_clean=$(echo "$iana" | tr -d '"')
-            posix_clean=$(echo "$posix" | tr -d '"')
-            echo "    \"${iana_clean,,}\": \"$posix_clean\"," >> generated/tz_data.py
-          done
-
-          echo "}" >> generated/tz_data.py
-          echo "" >> generated/tz_data.py
-          echo "def lookup(iana_name):" >> generated/tz_data.py
-          echo "    return tz_table.get(iana_name.lower().strip())" >> generated/tz_data.py
+          {
+            echo "# Generated on $TIMESTAMP"
+            echo "# Version $NEW_VERSION"
+            echo "# Source: $REPO_URL"
+            echo ""
+            echo "tz_table = {"
+            tail -n +1 zones.csv | while IFS=, read -r iana posix; do
+              iana_clean=$(echo "$iana" | tr -d '"')
+              posix_clean=$(echo "$posix" | tr -d '"')
+              echo "    \"${iana_clean,,}\": \"$posix_clean\","
+            done
+            echo "}"
+            echo ""
+            echo "def lookup(iana_name):"
+            echo "    return tz_table.get(iana_name.lower().strip())"
+          } > generated/tz_data.py
 
       - name: Compare and commit only if real tz_table changed
         run: |
           mkdir -p existing
-          tail -n +3 generated/tz_data.py > generated/core.py
-          tail -n +3 tz_data.py > existing/core.py || touch existing/core.py
+          tail -n +4 generated/tz_data.py > generated/core.py
+          tail -n +4 tz_data.py > existing/core.py || touch existing/core.py
 
           if ! diff -q generated/core.py existing/core.py >/dev/null; then
             VERSION=$(cat version.txt)
