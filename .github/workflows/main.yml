@@ -1,0 +1,62 @@
+name: Update TZ Data
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly, every Sunday at 00:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write  # ✅ Needed to commit and push/tag changes
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Download latest zones.csv
+        run: curl -sSLO https://raw.githubusercontent.com/nayarsystems/posix_tz_db/master/zones.csv
+
+      - name: Generate tz_data.py
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          VERSION=$(cat version.txt)
+          IFS='.' read MAJOR MINOR PATCH <<< "$VERSION"
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "$NEW_VERSION" > version.txt
+
+          echo "# Generated on $TIMESTAMP" > tz_data.py
+          echo "# Version $NEW_VERSION" >> tz_data.py
+          echo "" >> tz_data.py
+          echo "tz_table = {" >> tz_data.py
+
+          tail -n +1 zones.csv | while IFS=, read -r iana posix; do
+            iana_clean=$(echo "$iana" | tr -d '"')
+            posix_clean=$(echo "$posix" | tr -d '"')
+            echo "    \"${iana_clean,,}\": \"$posix_clean\"," >> tz_data.py
+          done
+
+          echo "}" >> tz_data.py
+          echo "" >> tz_data.py
+          echo "def lookup(iana_name):" >> tz_data.py
+          echo "    return tz_table.get(iana_name.lower().strip())" >> tz_data.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tz_data.py version.txt
+          git commit -m "Update tz_data.py to version $NEW_VERSION"
+          git tag -a "v$NEW_VERSION" -m "Version $NEW_VERSION"
+          git push origin main --follow-tags
